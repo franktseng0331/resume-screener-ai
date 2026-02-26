@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { FileText, Briefcase, CheckCircle, XCircle, AlertCircle, Loader2, Upload, ChevronRight, BarChart3, Trash2, ChevronDown, FileUp, History, Clock, Home, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { api } from './lib/api';
 
 // 配置PDF.js worker - 使用本地worker文件
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -145,57 +146,83 @@ export default function App() {
 
   // 加载历史记录、岗位数据和用户数据
   useEffect(() => {
-    // 加载用户数据
-    const savedUsers = localStorage.getItem('resume-screener-users');
-    if (savedUsers) {
+    const loadData = async () => {
       try {
-        setUsers(JSON.parse(savedUsers));
-      } catch (e) {
-        console.error('加载用户数据失败:', e);
-      }
-    } else {
-      // 初始化默认admin用户
-      const defaultAdmin: User = {
-        id: 'admin',
-        username: 'admin',
-        password: 'admin',
-        role: 'admin',
-        position: '系统管理员',
-        createdAt: Date.now()
-      };
-      setUsers([defaultAdmin]);
-      localStorage.setItem('resume-screener-users', JSON.stringify([defaultAdmin]));
-    }
+        // 加载用户数据
+        try {
+          const usersData = await api.getUsers();
+          if (usersData && usersData.length > 0) {
+            setUsers(usersData);
+            localStorage.setItem('resume-screener-users', JSON.stringify(usersData));
+          } else {
+            // 初始化默认admin用户
+            const defaultAdmin: User = {
+              id: 'admin',
+              username: 'admin',
+              password: 'admin',
+              role: 'admin',
+              position: '系统管理员',
+              createdAt: Date.now()
+            };
+            await api.createUser(defaultAdmin);
+            setUsers([defaultAdmin]);
+            localStorage.setItem('resume-screener-users', JSON.stringify([defaultAdmin]));
+          }
+        } catch (e) {
+          console.error('从API加载用户数据失败，使用本地缓存:', e);
+          const savedUsers = localStorage.getItem('resume-screener-users');
+          if (savedUsers) {
+            setUsers(JSON.parse(savedUsers));
+          }
+        }
 
-    // 检查是否已登录
-    const savedCurrentUser = localStorage.getItem('resume-screener-current-user');
-    if (savedCurrentUser) {
-      try {
-        const user = JSON.parse(savedCurrentUser);
-        setCurrentUser(user);
-        setIsAuthenticated(true);
-      } catch (e) {
-        console.error('加载当前用户失败:', e);
-      }
-    }
+        // 检查是否已登录
+        const savedCurrentUser = localStorage.getItem('resume-screener-current-user');
+        if (savedCurrentUser) {
+          try {
+            const user = JSON.parse(savedCurrentUser);
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+          } catch (e) {
+            console.error('加载当前用户失败:', e);
+          }
+        }
 
-    const savedHistory = localStorage.getItem('resume-screener-history');
-    if (savedHistory) {
-      try {
-        setHistoryRecords(JSON.parse(savedHistory));
-      } catch (e) {
-        console.error('加载历史记录失败:', e);
-      }
-    }
+        // 加载历史记录
+        try {
+          const historyData = await api.getHistory();
+          if (historyData) {
+            setHistoryRecords(historyData);
+            localStorage.setItem('resume-screener-history', JSON.stringify(historyData));
+          }
+        } catch (e) {
+          console.error('从API加载历史记录失败，使用本地缓存:', e);
+          const savedHistory = localStorage.getItem('resume-screener-history');
+          if (savedHistory) {
+            setHistoryRecords(JSON.parse(savedHistory));
+          }
+        }
 
-    const savedPositions = localStorage.getItem('resume-screener-positions');
-    if (savedPositions) {
-      try {
-        setPositions(JSON.parse(savedPositions));
-      } catch (e) {
-        console.error('加载岗位数据失败:', e);
+        // 加载职位数据
+        try {
+          const positionsData = await api.getPositions();
+          if (positionsData) {
+            setPositions(positionsData);
+            localStorage.setItem('resume-screener-positions', JSON.stringify(positionsData));
+          }
+        } catch (e) {
+          console.error('从API加载职位数据失败，使用本地缓存:', e);
+          const savedPositions = localStorage.getItem('resume-screener-positions');
+          if (savedPositions) {
+            setPositions(JSON.parse(savedPositions));
+          }
+        }
+      } catch (error) {
+        console.error('加载数据失败:', error);
       }
-    }
+    };
+
+    loadData();
   }, []);
 
   // 非管理员用户自动跳转到历史记录页面
@@ -230,7 +257,7 @@ export default function App() {
   };
 
   // 用户管理函数
-  const addUser = () => {
+  const addUser = async () => {
     if (!newUser.username.trim() || !newUser.password.trim()) {
       alert('用户名和密码不能为空');
       return;
@@ -250,22 +277,34 @@ export default function App() {
       createdAt: Date.now()
     };
 
-    const updatedUsers = [...users, user];
-    setUsers(updatedUsers);
-    localStorage.setItem('resume-screener-users', JSON.stringify(updatedUsers));
-    setNewUser({ username: '', password: '', position: '' });
+    try {
+      await api.createUser(user);
+      const updatedUsers = [...users, user];
+      setUsers(updatedUsers);
+      localStorage.setItem('resume-screener-users', JSON.stringify(updatedUsers));
+      setNewUser({ username: '', password: '', position: '' });
+    } catch (error) {
+      console.error('创建用户失败:', error);
+      alert('创建用户失败，请重试');
+    }
   };
 
-  const deleteUser = (userId: string) => {
+  const deleteUser = async (userId: string) => {
     if (userId === 'admin') {
       alert('不能删除管理员账号');
       return;
     }
 
     if (confirm('确定要删除该用户吗？')) {
-      const updatedUsers = users.filter(u => u.id !== userId);
-      setUsers(updatedUsers);
-      localStorage.setItem('resume-screener-users', JSON.stringify(updatedUsers));
+      try {
+        await api.deleteUser(userId);
+        const updatedUsers = users.filter(u => u.id !== userId);
+        setUsers(updatedUsers);
+        localStorage.setItem('resume-screener-users', JSON.stringify(updatedUsers));
+      } catch (error) {
+        console.error('删除用户失败:', error);
+        alert('删除用户失败，请重试');
+      }
     }
   };
 
@@ -275,24 +314,33 @@ export default function App() {
     setTransferToUserId('');
   };
 
-  const confirmTransfer = () => {
+  const confirmTransfer = async () => {
     if (!transferToUserId) {
       alert('请选择要流转的用户');
       return;
     }
 
-    const updatedRecords = historyRecords.map(record => {
-      if (record.id === transferRecordId) {
-        return { ...record, assignedTo: transferToUserId };
+    try {
+      if (transferRecordId) {
+        await api.updateHistory(transferRecordId, transferToUserId);
       }
-      return record;
-    });
 
-    setHistoryRecords(updatedRecords);
-    localStorage.setItem('resume-screener-history', JSON.stringify(updatedRecords));
-    setTransferRecordId(null);
-    setTransferToUserId('');
-    alert('流转成功');
+      const updatedRecords = historyRecords.map(record => {
+        if (record.id === transferRecordId) {
+          return { ...record, assignedTo: transferToUserId };
+        }
+        return record;
+      });
+
+      setHistoryRecords(updatedRecords);
+      localStorage.setItem('resume-screener-history', JSON.stringify(updatedRecords));
+      setTransferRecordId(null);
+      setTransferToUserId('');
+      alert('流转成功');
+    } catch (error) {
+      console.error('流转失败:', error);
+      alert('流转失败，请重试');
+    }
   };
 
   // 删除记录函数
@@ -300,18 +348,24 @@ export default function App() {
     setDeleteRecordId(recordId);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteRecordId) return;
 
-    const updatedRecords = historyRecords.filter(record => record.id !== deleteRecordId);
-    setHistoryRecords(updatedRecords);
-    localStorage.setItem('resume-screener-history', JSON.stringify(updatedRecords));
-    setDeleteRecordId(null);
-    alert('删除成功');
+    try {
+      await api.deleteHistory(deleteRecordId);
+      const updatedRecords = historyRecords.filter(record => record.id !== deleteRecordId);
+      setHistoryRecords(updatedRecords);
+      localStorage.setItem('resume-screener-history', JSON.stringify(updatedRecords));
+      setDeleteRecordId(null);
+      alert('删除成功');
+    } catch (error) {
+      console.error('删除失败:', error);
+      alert('删除失败，请重试');
+    }
   };
 
   // 保存历史记录
-  const saveToHistory = (currentFiles: UploadedFile[]) => {
+  const saveToHistory = async (currentFiles: UploadedFile[]) => {
     const successfulResults = currentFiles
       .filter(f => f.status === 'success' && f.result)
       .map(f => ({
@@ -339,15 +393,23 @@ export default function App() {
 
     console.log('保存历史记录:', newRecord);
 
-    const updatedHistory = [newRecord, ...historyRecords].slice(0, 50); // 最多保存50条
-    setHistoryRecords(updatedHistory);
-    localStorage.setItem('resume-screener-history', JSON.stringify(updatedHistory));
-
-    console.log('历史记录已保存，共', updatedHistory.length, '条');
+    try {
+      await api.createHistory(newRecord);
+      const updatedHistory = [newRecord, ...historyRecords].slice(0, 50); // 最多保存50条
+      setHistoryRecords(updatedHistory);
+      localStorage.setItem('resume-screener-history', JSON.stringify(updatedHistory));
+      console.log('历史记录已保存，共', updatedHistory.length, '条');
+    } catch (error) {
+      console.error('保存历史记录失败:', error);
+      // 即使API失败，也保存到本地
+      const updatedHistory = [newRecord, ...historyRecords].slice(0, 50);
+      setHistoryRecords(updatedHistory);
+      localStorage.setItem('resume-screener-history', JSON.stringify(updatedHistory));
+    }
   };
 
   // 岗位管理函数
-  const addPosition = () => {
+  const addPosition = async () => {
     if (!newPositionName.trim()) return;
 
     const newPosition: Position = {
@@ -356,29 +418,47 @@ export default function App() {
       createdAt: Date.now()
     };
 
-    const updatedPositions = [...positions, newPosition];
-    setPositions(updatedPositions);
-    localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
-    setNewPositionName('');
+    try {
+      await api.createPosition(newPosition);
+      const updatedPositions = [...positions, newPosition];
+      setPositions(updatedPositions);
+      localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
+      setNewPositionName('');
+    } catch (error) {
+      console.error('创建职位失败:', error);
+      alert('创建职位失败，请重试');
+    }
   };
 
-  const updatePosition = (id: string, newName: string) => {
+  const updatePosition = async (id: string, newName: string) => {
     if (!newName.trim()) return;
 
-    const updatedPositions = positions.map(p =>
-      p.id === id ? { ...p, name: newName.trim() } : p
-    );
-    setPositions(updatedPositions);
-    localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
-    setEditingPosition(null);
+    try {
+      await api.updatePosition(id, newName.trim());
+      const updatedPositions = positions.map(p =>
+        p.id === id ? { ...p, name: newName.trim() } : p
+      );
+      setPositions(updatedPositions);
+      localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
+      setEditingPosition(null);
+    } catch (error) {
+      console.error('更新职位失败:', error);
+      alert('更新职位失败，请重试');
+    }
   };
 
-  const deletePosition = (id: string) => {
-    const updatedPositions = positions.filter(p => p.id !== id);
-    setPositions(updatedPositions);
-    localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
-    if (selectedPosition === id) {
-      setSelectedPosition('');
+  const deletePosition = async (id: string) => {
+    try {
+      await api.deletePosition(id);
+      const updatedPositions = positions.filter(p => p.id !== id);
+      setPositions(updatedPositions);
+      localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
+      if (selectedPosition === id) {
+        setSelectedPosition('');
+      }
+    } catch (error) {
+      console.error('删除职位失败:', error);
+      alert('删除职位失败，请重试');
     }
   };
 

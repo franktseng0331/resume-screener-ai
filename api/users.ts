@@ -1,0 +1,39 @@
+import { getDb } from '../../lib/db';
+
+export default async function handler(req: any, res: any) {
+  const sql = getDb();
+
+  try {
+    if (req.method === 'GET') {
+      // 获取所有用户
+      const users = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+      return res.status(200).json(users);
+    }
+
+    if (req.method === 'POST') {
+      // 创建新用户
+      const { id, username, password, role, position, createdAt } = req.body;
+
+      await sql`
+        INSERT INTO users (id, username, password, role, position, created_at)
+        VALUES (${id}, ${username}, ${password}, ${role}, ${position}, ${createdAt})
+      `;
+
+      return res.status(201).json({ success: true });
+    }
+
+    if (req.method === 'DELETE') {
+      // 删除用户
+      const { id } = req.query;
+
+      await sql`DELETE FROM users WHERE id = ${id}`;
+
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error: any) {
+    console.error('Users API Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
