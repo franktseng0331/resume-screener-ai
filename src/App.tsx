@@ -131,6 +131,9 @@ export default function App() {
   const [transferRecordId, setTransferRecordId] = useState<string | null>(null);
   const [transferToUserId, setTransferToUserId] = useState<string>('');
 
+  // 删除相关
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState<'home' | 'history' | 'positions' | 'permissions'>('home');
   const [jobDescription, setJobDescription] = useState('');
   const [specialRequirements, setSpecialRequirements] = useState('');
@@ -298,6 +301,21 @@ export default function App() {
     setTransferRecordId(null);
     setTransferToUserId('');
     alert('流转成功');
+  };
+
+  // 删除记录函数
+  const handleDeleteRecord = (recordId: string) => {
+    setDeleteRecordId(recordId);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteRecordId) return;
+
+    const updatedRecords = historyRecords.filter(record => record.id !== deleteRecordId);
+    setHistoryRecords(updatedRecords);
+    localStorage.setItem('resume-screener-history', JSON.stringify(updatedRecords));
+    setDeleteRecordId(null);
+    alert('删除成功');
   };
 
   // 保存历史记录
@@ -1771,13 +1789,22 @@ ${pdfText}
                                   <span>详情</span>
                                 </button>
                                 {currentUser?.role === 'admin' && (
-                                  <button
-                                    onClick={() => handleTransferRecord(record.id)}
-                                    className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                  >
-                                    <ChevronRight className="w-3.5 h-3.5" />
-                                    <span>流转</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleTransferRecord(record.id)}
+                                      className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    >
+                                      <ChevronRight className="w-3.5 h-3.5" />
+                                      <span>流转</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteRecord(record.id)}
+                                      className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>删除</span>
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -1830,6 +1857,40 @@ ${pdfText}
                 className="flex-1 py-2 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
               >
                 确认流转
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 删除确认对话框 */}
+      {deleteRecordId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteRecordId(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">确认删除</h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">确定要删除这条筛查记录吗？此操作无法撤销。</p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setDeleteRecordId(null)}
+                className="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                确认删除
               </button>
             </div>
           </motion.div>
