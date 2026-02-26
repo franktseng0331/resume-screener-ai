@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import OpenAI from 'openai';
 import * as pdfjsLib from 'pdfjs-dist';
 import { FileText, Briefcase, CheckCircle, XCircle, AlertCircle, Loader2, Upload, ChevronRight, BarChart3, Trash2, ChevronDown, FileUp, History, Clock, Home, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -9,13 +8,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString();
-
-// Initialize Deepseek API (OpenAI compatible)
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com',
-  dangerouslyAllowBrowser: true // 注意：生产环境应该通过后端调用
-});
 
 interface AnalysisResult {
   candidateInfo: {
@@ -648,23 +640,34 @@ ${pdfText}
 
 请务必输出完整的JSON，所有字段都必须填写。`;
 
-        const response = await client.chat.completions.create({
-          model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content: candidateType === 'intern'
-                ? '你是一位拥有10年经验的资深校招专家和人才发展顾问，擅长识别应届生/实习生的潜力和成长性。你必须客观、严谨，重点评估学习能力和实践经验，而非工作年限。输出必须为中文，并以JSON格式返回。'
-                : '你是一位拥有10年经验的资深猎头和技术面试官，擅长深度分析候选人简历，识别真实能力和潜在风险。你必须客观、严谨，既不过度包装也不过分苛刻。输出必须为中文，并以JSON格式返回。'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.6
+        // 通过后端API代理调用Deepseek，避免浏览器直连问题
+        const apiResponse = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: candidateType === 'intern'
+                  ? '你是一位拥有10年经验的资深校招专家和人才发展顾问，擅长识别应届生/实习生的潜力和成长性。你必须客观、严谨，重点评估学习能力和实践经验，而非工作年限。输出必须为中文，并以JSON格式返回。'
+                  : '你是一位拥有10年经验的资深猎头和技术面试官，擅长深度分析候选人简历，识别真实能力和潜在风险。你必须客观、严谨，既不过度包装也不过分苛刻。输出必须为中文，并以JSON格式返回。'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.6
+          })
         });
+
+        if (!apiResponse.ok) {
+          throw new Error(`API请求失败: ${apiResponse.statusText}`);
+        }
+
+        const response = await apiResponse.json();
 
         const content = response.choices[0]?.message?.content;
         if (content) {
