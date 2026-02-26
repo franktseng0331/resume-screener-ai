@@ -1,0 +1,5 @@
+{
+  "name": "Resume Screener AI",
+  "description": "An AI-powered application to screen resumes against job requirements.",
+  "requestFramePermissions": []
+}
