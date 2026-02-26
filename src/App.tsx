@@ -173,6 +173,18 @@ export default function App() {
           const savedUsers = localStorage.getItem('resume-screener-users');
           if (savedUsers) {
             setUsers(JSON.parse(savedUsers));
+          } else {
+            // 如果本地缓存也没有，创建默认admin用户
+            const defaultAdmin: User = {
+              id: 'admin',
+              username: 'admin',
+              password: 'admin',
+              role: 'admin',
+              position: '系统管理员',
+              createdAt: Date.now()
+            };
+            setUsers([defaultAdmin]);
+            localStorage.setItem('resume-screener-users', JSON.stringify([defaultAdmin]));
           }
         }
 
