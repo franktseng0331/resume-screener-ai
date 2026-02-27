@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS positions (
   id VARCHAR(255) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  job_description TEXT,
   created_at BIGINT NOT NULL
 );
 

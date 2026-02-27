@@ -20,16 +20,24 @@ export default async function handler(req: any, res: any) {
     if (req.method === 'GET') {
       // 获取所有职位
       const positions = await sql`SELECT * FROM positions ORDER BY created_at DESC`;
-      return res.status(200).json(positions);
+
+      // 转换字段名
+      const formattedPositions = positions.map((pos: any) => ({
+        ...pos,
+        createdAt: pos.created_at,
+        jobDescription: pos.job_description
+      }));
+
+      return res.status(200).json(formattedPositions);
     }
 
     if (req.method === 'POST') {
       // 创建新职位
-      const { id, name, createdAt } = req.body;
+      const { id, name, jobDescription, createdAt } = req.body;
 
       await sql`
-        INSERT INTO positions (id, name, created_at)
-        VALUES (${id}, ${name}, ${createdAt})
+        INSERT INTO positions (id, name, job_description, created_at)
+        VALUES (${id}, ${name}, ${jobDescription || null}, ${createdAt})
       `;
 
       return res.status(201).json({ success: true });
@@ -37,11 +45,11 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === 'PUT') {
       // 更新职位
-      const { id, name } = req.body;
+      const { id, name, jobDescription } = req.body;
 
       await sql`
         UPDATE positions
-        SET name = ${name}
+        SET name = ${name}, job_description = ${jobDescription || null}
         WHERE id = ${id}
       `;
 

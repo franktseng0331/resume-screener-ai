@@ -53,11 +53,11 @@ export const api = {
     return res.json();
   },
 
-  async updatePosition(id: string, name: string) {
+  async updatePosition(id: string, name: string, jobDescription?: string) {
     const res = await fetch('/api/positions', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name })
+      body: JSON.stringify({ id, name, jobDescription })
     });
     if (!res.ok) throw new Error('Failed to update position');
     return res.json();

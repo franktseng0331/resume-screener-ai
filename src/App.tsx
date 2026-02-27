@@ -47,6 +47,7 @@ interface UploadedFile {
 interface Position {
   id: string;
   name: string;
+  jobDescription?: string; // JD内容
   createdAt: number;
 }
 
@@ -148,6 +149,7 @@ export default function App() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [newPositionName, setNewPositionName] = useState('');
+  const [newPositionJD, setNewPositionJD] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 加载历史记录、岗位数据和用户数据
@@ -475,6 +477,7 @@ export default function App() {
     const newPosition: Position = {
       id: Date.now().toString(),
       name: newPositionName.trim(),
+      jobDescription: newPositionJD.trim() || undefined,
       createdAt: Date.now()
     };
 
@@ -484,19 +487,20 @@ export default function App() {
       setPositions(updatedPositions);
       localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
       setNewPositionName('');
+      setNewPositionJD('');
     } catch (error) {
       console.error('创建职位失败:', error);
       alert('创建职位失败，请重试');
     }
   };
 
-  const updatePosition = async (id: string, newName: string) => {
+  const updatePosition = async (id: string, newName: string, newJD?: string) => {
     if (!newName.trim()) return;
 
     try {
-      await api.updatePosition(id, newName.trim());
+      await api.updatePosition(id, newName.trim(), newJD);
       const updatedPositions = positions.map(p =>
-        p.id === id ? { ...p, name: newName.trim() } : p
+        p.id === id ? { ...p, name: newName.trim(), jobDescription: newJD } : p
       );
       setPositions(updatedPositions);
       localStorage.setItem('resume-screener-positions', JSON.stringify(updatedPositions));
@@ -1076,7 +1080,17 @@ ${pdfText}
               <div className="p-5">
                 <select
                   value={selectedPosition}
-                  onChange={(e) => setSelectedPosition(e.target.value)}
+                  onChange={(e) => {
+                    const positionId = e.target.value;
+                    setSelectedPosition(positionId);
+                    // 自动填充该岗位的JD
+                    if (positionId) {
+                      const position = positions.find(p => p.id === positionId);
+                      if (position?.jobDescription) {
+                        setJobDescription(position.jobDescription);
+                      }
+                    }
+                  }}
                   className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
                 >
                   <option value="">请选择招聘岗位</option>
@@ -1473,21 +1487,27 @@ ${pdfText}
               {/* 添加岗位 */}
               <div className="p-6 border-b border-slate-200">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">添加新岗位</h3>
-                <div className="flex space-x-3">
+                <div className="space-y-3">
                   <input
                     type="text"
                     value={newPositionName}
                     onChange={(e) => setNewPositionName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addPosition()}
-                    placeholder="输入岗位名称，如：前端工程师、产品经理..."
-                    className="flex-1 p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                    placeholder="岗位名称，如：前端工程师、产品经理..."
+                    className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                  />
+                  <textarea
+                    value={newPositionJD}
+                    onChange={(e) => setNewPositionJD(e.target.value)}
+                    placeholder="招聘需求（JD）- 可选，填写后筛查时可直接选择该岗位自动填充JD..."
+                    rows={6}
+                    className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors resize-none"
                   />
                   <button
                     onClick={addPosition}
                     disabled={!newPositionName.trim()}
-                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                   >
-                    添加
+                    添加岗位
                   </button>
                 </div>
               </div>
@@ -1503,54 +1523,87 @@ ${pdfText}
                     <p>暂无岗位，请添加第一个岗位</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {positions.map((position) => (
                       <div
                         key={position.id}
-                        className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                        className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
                       >
                         {editingPosition?.id === position.id ? (
-                          <input
-                            type="text"
-                            defaultValue={position.name}
-                            onBlur={(e) => updatePosition(position.id, e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                updatePosition(position.id, (e.target as HTMLInputElement).value);
-                              }
-                            }}
-                            autoFocus
-                            className="flex-1 p-2 text-sm bg-white border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
+                          <div className="space-y-3">
+                            <input
+                              type="text"
+                              defaultValue={position.name}
+                              placeholder="岗位名称"
+                              id={`edit-name-${position.id}`}
+                              className="w-full p-2 text-sm bg-white border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            />
+                            <textarea
+                              defaultValue={position.jobDescription || ''}
+                              placeholder="招聘需求（JD）"
+                              id={`edit-jd-${position.id}`}
+                              rows={6}
+                              className="w-full p-2 text-sm bg-white border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                            />
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  const nameInput = document.getElementById(`edit-name-${position.id}`) as HTMLInputElement;
+                                  const jdInput = document.getElementById(`edit-jd-${position.id}`) as HTMLTextAreaElement;
+                                  updatePosition(position.id, nameInput.value, jdInput.value);
+                                }}
+                                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-medium transition-colors"
+                              >
+                                保存
+                              </button>
+                              <button
+                                onClick={() => setEditingPosition(null)}
+                                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm rounded-lg font-medium transition-colors"
+                              >
+                                取消
+                              </button>
+                            </div>
+                          </div>
                         ) : (
-                          <div className="flex items-center space-x-3">
-                            <Briefcase className="w-5 h-5 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-900">{position.name}</span>
-                            <span className="text-xs text-slate-500">
-                              创建于 {new Date(position.createdAt).toLocaleDateString('zh-CN')}
-                            </span>
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-3">
+                                <Briefcase className="w-5 h-5 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-900">{position.name}</span>
+                                <span className="text-xs text-slate-500">
+                                  创建于 {new Date(position.createdAt).toLocaleDateString('zh-CN')}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => setEditingPosition(position)}
+                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                  title="编辑"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`确定要删除岗位"${position.name}"吗？`)) {
+                                      deletePosition(position.id);
+                                    }
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                  title="删除"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            {position.jobDescription && (
+                              <div className="mt-2 p-3 bg-white border border-slate-200 rounded text-xs text-slate-600 whitespace-pre-wrap">
+                                {position.jobDescription.length > 200
+                                  ? position.jobDescription.substring(0, 200) + '...'
+                                  : position.jobDescription}
+                              </div>
+                            )}
                           </div>
                         )}
-                        <div className="flex items-center space-x-2">
-                          {editingPosition?.id !== position.id && (
-                            <button
-                              onClick={() => setEditingPosition(position)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              if (confirm(`确定要删除岗位"${position.name}"吗？`)) {
-                                deletePosition(position.id);
-                              }
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                       </div>
                     ))}
                   </div>
