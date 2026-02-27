@@ -321,6 +321,27 @@ export default function App() {
     }
   };
 
+  const updateUser = async (userId: string, password: string, position: string) => {
+    try {
+      const updates: any = {};
+      if (password) updates.password = password;
+      if (position) updates.position = position;
+
+      await api.updateUser(userId, updates);
+
+      const updatedUsers = users.map(u =>
+        u.id === userId ? { ...u, ...updates } : u
+      );
+      setUsers(updatedUsers);
+      localStorage.setItem('resume-screener-users', JSON.stringify(updatedUsers));
+      setEditingUser(null);
+      alert('更新成功');
+    } catch (error) {
+      console.error('更新用户失败:', error);
+      alert('更新用户失败，请重试');
+    }
+  };
+
   // 流转记录函数
   const handleTransferRecord = (recordId: string) => {
     setTransferRecordId(recordId);
@@ -1588,12 +1609,20 @@ ${pdfText}
                           </td>
                           <td className="py-3 px-4">
                             {user.id !== 'admin' && (
-                              <button
-                                onClick={() => deleteUser(user.id)}
-                                className="text-sm text-rose-600 hover:text-rose-700 font-medium"
-                              >
-                                删除
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => setEditingUser(user)}
+                                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                                >
+                                  编辑
+                                </button>
+                                <button
+                                  onClick={() => deleteUser(user.id)}
+                                  className="text-sm text-rose-600 hover:text-rose-700 font-medium"
+                                >
+                                  删除
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1996,6 +2025,69 @@ ${pdfText}
                 className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
               >
                 确认删除
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 编辑用户对话框 */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingUser(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">编辑用户</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">用户名</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  disabled
+                  className="w-full p-3 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-slate-500 mt-1">用户名不可修改</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">新密码</label>
+                <input
+                  type="password"
+                  defaultValue=""
+                  placeholder="留空则不修改密码"
+                  id="edit-password"
+                  className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">岗位名称</label>
+                <input
+                  type="text"
+                  defaultValue={editingUser.position}
+                  id="edit-position"
+                  className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+                  const position = (document.getElementById('edit-position') as HTMLInputElement).value;
+                  updateUser(editingUser.id, password, position);
+                }}
+                className="flex-1 py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+              >
+                保存
               </button>
             </div>
           </motion.div>

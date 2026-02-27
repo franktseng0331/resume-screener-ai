@@ -18,6 +18,16 @@ export const api = {
     return res.json();
   },
 
+  async updateUser(id: string, updates: any) {
+    const res = await fetch('/api/users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...updates })
+    });
+    if (!res.ok) throw new Error('Failed to update user');
+    return res.json();
+  },
+
   async deleteUser(id: string) {
     const res = await fetch(`/api/users?id=${id}`, {
       method: 'DELETE'
