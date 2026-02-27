@@ -19,7 +19,18 @@ export default async function handler(req: any, res: any) {
   try {
     if (req.method === 'GET') {
       // 获取所有用户
-      const users = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+      const usersData = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+
+      // 转换字段名从 snake_case 到 camelCase
+      const users = usersData.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        password: user.password,
+        role: user.role,
+        position: user.position,
+        createdAt: user.created_at
+      }));
+
       return res.status(200).json(users);
     }
 
