@@ -1,6 +1,17 @@
-import { getDb } from '../../lib/db';
+import { getDb, isDatabaseConfigured } from '../../lib/db';
 
 export default async function handler(req: any, res: any) {
+  // 如果数据库未配置，返回空数据让前端使用localStorage
+  if (!isDatabaseConfigured()) {
+    if (req.method === 'GET') {
+      return res.status(200).json([]);
+    }
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
+      return res.status(200).json({ success: true });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const sql = getDb();
 
   try {
