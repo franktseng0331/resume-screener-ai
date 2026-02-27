@@ -948,11 +948,15 @@ ${pdfText}
           >
             <History className="w-5 h-5" />
             <span>{currentUser?.role === 'admin' ? '历史记录' : '筛选结果'}</span>
-            {historyRecords.filter(r => currentUser?.role === 'admin' || r.assignedTo === currentUser?.id).length > 0 && (
-              <span className="ml-auto bg-indigo-100 text-indigo-600 text-xs font-medium px-2 py-0.5 rounded-full">
-                {historyRecords.filter(r => currentUser?.role === 'admin' || r.assignedTo === currentUser?.id).length}
-              </span>
-            )}
+            {(() => {
+              const filteredRecords = historyRecords.filter(r => currentUser?.role === 'admin' || r.assignedTo === currentUser?.id);
+              const totalCandidates = filteredRecords.reduce((sum, r) => sum + r.results.length, 0);
+              return totalCandidates > 0 && (
+                <span className="ml-auto bg-indigo-100 text-indigo-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {totalCandidates}
+                </span>
+              );
+            })()}
           </button>
 
           {currentUser?.role === 'admin' && (
