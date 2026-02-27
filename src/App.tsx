@@ -139,6 +139,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [historyRecords, setHistoryRecords] = useState<HistoryRecord[]>([]);
   const [selectedHistoryRecord, setSelectedHistoryRecord] = useState<HistoryRecord | null>(null);
+  const [selectedCandidateIndex, setSelectedCandidateIndex] = useState<number>(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [newPositionName, setNewPositionName] = useState('');
@@ -1663,11 +1664,12 @@ ${pdfText}
 
                 {/* 候选人分析结果 */}
                 <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-slate-900">
-                    候选人分析结果 ({selectedHistoryRecord.results.length}人)
-                  </h4>
-                  {selectedHistoryRecord.results.map((result, idx) => (
-                    <div key={idx} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  {(() => {
+                    const result = selectedHistoryRecord.results[selectedCandidateIndex];
+                    if (!result) return null;
+
+                    return (
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                       <div className={`p-4 flex items-center justify-between ${getScoreBg(result.result.matchScore)}`}>
                         <div className="flex items-center space-x-4">
                           <div className={`w-16 h-16 rounded-lg flex items-center justify-center bg-white border border-slate-200 shadow-sm`}>
@@ -1805,7 +1807,8 @@ ${pdfText}
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })()}
                 </div>
               </div>
             ) : (
@@ -1881,7 +1884,10 @@ ${pdfText}
                             <td className="px-4 py-4 text-center">
                               <div className="flex items-center justify-center space-x-2">
                                 <button
-                                  onClick={() => setSelectedHistoryRecord(record)}
+                                  onClick={() => {
+                                    setSelectedHistoryRecord(record);
+                                    setSelectedCandidateIndex(idx);
+                                  }}
                                   className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
