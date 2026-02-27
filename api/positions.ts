@@ -24,7 +24,7 @@ export default async function handler(req: any, res: any) {
       // 转换字段名
       const formattedPositions = positions.map((pos: any) => ({
         ...pos,
-        createdAt: pos.created_at,
+        createdAt: Number(pos.created_at), // 确保是数字类型
         jobDescription: pos.job_description
       }));
 

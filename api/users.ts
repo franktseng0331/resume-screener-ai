@@ -28,7 +28,7 @@ export default async function handler(req: any, res: any) {
         password: user.password,
         role: user.role,
         position: user.position,
-        createdAt: user.created_at
+        createdAt: Number(user.created_at) // 确保是数字类型
       }));
 
       return res.status(200).json(users);
