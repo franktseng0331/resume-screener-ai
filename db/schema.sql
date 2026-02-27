@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS history_records (
   job_description TEXT NOT NULL,
   special_requirements TEXT,
   results JSONB NOT NULL,
+  pdf_files JSONB,
   assigned_to VARCHAR(255),
   created_by VARCHAR(255),
   FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,

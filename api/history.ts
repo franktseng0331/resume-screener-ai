@@ -31,7 +31,8 @@ export default async function handler(req: any, res: any) {
         jobDescription: record.job_description,
         specialRequirements: record.special_requirements,
         assignedTo: record.assigned_to,
-        createdBy: record.created_by
+        createdBy: record.created_by,
+        pdfFiles: record.pdf_files
       }));
 
       return res.status(200).json(formattedRecords);
@@ -46,6 +47,7 @@ export default async function handler(req: any, res: any) {
         jobDescription,
         specialRequirements,
         results,
+        pdfFiles,
         assignedTo,
         createdBy
       } = req.body;
@@ -53,11 +55,12 @@ export default async function handler(req: any, res: any) {
       await sql`
         INSERT INTO history_records (
           id, timestamp, position_name, job_description,
-          special_requirements, results, assigned_to, created_by
+          special_requirements, results, pdf_files, assigned_to, created_by
         )
         VALUES (
           ${id}, ${timestamp}, ${positionName}, ${jobDescription},
           ${specialRequirements || ''}, ${JSON.stringify(results)},
+          ${pdfFiles ? JSON.stringify(pdfFiles) : null},
           ${assignedTo || null}, ${createdBy || null}
         )
       `;

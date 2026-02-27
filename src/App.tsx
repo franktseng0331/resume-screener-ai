@@ -62,6 +62,11 @@ interface HistoryRecord {
   }>;
   assignedTo?: string; // 流转给的用户ID
   createdBy?: string; // 创建者用户ID
+  pdfFiles?: Array<{
+    fileName: string;
+    data: string; // base64编码的PDF数据
+    size: number;
+  }>;
 }
 
 interface User {
@@ -412,6 +417,26 @@ export default function App() {
       return;
     }
 
+    // 将PDF文件转换为base64
+    const pdfFiles = await Promise.all(
+      currentFiles
+        .filter(f => f.status === 'success' && f.result)
+        .map(async (f) => {
+          const arrayBuffer = await f.file.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce(
+              (data, byte) => data + String.fromCharCode(byte),
+              ''
+            )
+          );
+          return {
+            fileName: f.name,
+            data: base64,
+            size: f.file.size
+          };
+        })
+    );
+
     const positionName = positions.find(p => p.id === selectedPosition)?.name || '未指定岗位';
 
     const newRecord: HistoryRecord = {
@@ -421,6 +446,7 @@ export default function App() {
       jobDescription,
       specialRequirements,
       results: successfulResults,
+      pdfFiles,
       createdBy: currentUser?.id,
       assignedTo: currentUser?.id // 默认分配给创建者
     };
@@ -1697,8 +1723,32 @@ ${pdfText}
                     const result = selectedHistoryRecord.results[selectedCandidateIndex];
                     if (!result) return null;
 
+                    // 获取对应的PDF文件
+                    const pdfFile = selectedHistoryRecord.pdfFiles?.[selectedCandidateIndex];
+
                     return (
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                      {/* PDF查看器 */}
+                      {pdfFile && (
+                        <div className="p-6 border-b border-slate-200 bg-slate-50">
+                          <h6 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
+                            <FileText className="w-3.5 h-3.5 mr-1.5" />
+                            原始简历PDF
+                          </h6>
+                          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                            <iframe
+                              src={`data:application/pdf;base64,${pdfFile.data}`}
+                              className="w-full h-[600px]"
+                              title={pdfFile.fileName}
+                            />
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                            <span>{pdfFile.fileName}</span>
+                            <span>{(pdfFile.size / 1024).toFixed(2)} KB</span>
+                          </div>
+                        </div>
+                      )}
+
                       <div className={`p-4 flex items-center justify-between ${getScoreBg(result.result.matchScore)}`}>
                         <div className="flex items-center space-x-4">
                           <div className={`w-16 h-16 rounded-lg flex items-center justify-center bg-white border border-slate-200 shadow-sm`}>
