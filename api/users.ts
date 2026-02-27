@@ -1,8 +1,8 @@
-import { getDb, isDatabaseConfigured } from '../../lib/db';
-
 export default async function handler(req: any, res: any) {
   // 如果数据库未配置，返回空数据让前端使用localStorage
-  if (!isDatabaseConfigured()) {
+  const isDatabaseConfigured = !!process.env.DATABASE_URL;
+
+  if (!isDatabaseConfigured) {
     if (req.method === 'GET') {
       return res.status(200).json([]);
     }
@@ -12,7 +12,9 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const sql = getDb();
+  // 只有在数据库配置后才导入和使用
+  const { neon } = await import('@neondatabase/serverless');
+  const sql = neon(process.env.DATABASE_URL!);
 
   try {
     if (req.method === 'GET') {
